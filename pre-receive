@@ -1,0 +1,36 @@
+#!/usr/bin/php
+<?php
+
+date_default_timezone_set('Europe/Prague');
+
+require __DIR__ . '/inc/System.php';
+require __DIR__ . '/inc/Lock.php';
+require __DIR__ . '/inc/Refs.php';
+
+Lock::check();
+Lock::registerAutorelease();
+Lock::create();
+
+$refs = Refs::read();
+$count = 0;
+foreach ($refs as list($from, $to, $ref))
+{
+	$count++;
+	if ($count > 1)
+	{
+		System::fail("Pushing to multiple refs not allowed");
+	}
+	if (!Refs::validate($ref))
+	{
+		System::fail("Push to $ref not allowed");
+	}
+}
+
+// for ($i = 0; $i < 10; ++$i)
+// {
+// 	echo "$i/30\n";
+// 	sleep(1);
+// }
+
+// do not release lock, leave it for next hooks
+Lock::disableAutorelease();

@@ -1,0 +1,14 @@
+{
+    "name": "clevis/deploy",
+    "require": {
+        "symfony/process": "~2.5.3"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Mikulas",
+            "email": "rullaf@gmail.com"
+        }
+    ],
+    "minimum-stability": "stable"
+}

@@ -1,0 +1,73 @@
+#!/usr/bin/php
+<?php
+
+use Symfony\Component\Process\Process;
+
+date_default_timezone_set('Europe/Prague');
+
+require __DIR__ . '/inc/System.php';
+require __DIR__ . '/inc/Lock.php';
+require __DIR__ . '/inc/Refs.php';
+require __DIR__ . '/inc/vendor/autoload.php';
+
+echo "Post receive hook\n";
+
+Lock::registerAutorelease();
+
+$last = 0;
+foreach (glob('/srv/deploy/SITE_*') as $dir)
+{
+	$index = substr($dir, strlen('/srv/deploy/SITE_'));
+	if ($index > $last)
+	{
+		$last = $index;
+	}
+}
+
+$path = '/srv/deploy/SITE_' . ($last + 1);
+mkdir($path);
+echo "Checking-out to $path\n";
+run('git archive ' . Refs::getRef() . ' | tar -xC ' . escapeshellarg($path));
+
+echo "Coping previous config.local.neon\n";
+run('cp /srv/SITE/app/config/config.local.neon ' . escapeshellarg("$path/app/config/"));
+
+echo "Updating privileges\n";
+run('chmod -R ug+rwx,o= ' . escapeshellarg($path));
+run('chgrp -R webexpo ' . escapeshellarg($path));
+
+echo "Writing deploy.txt\n";
+$out = "Deployed on " . date('Y-m-d H:i:s') . "\n";
+$out .= Refs::getCommit() . "\n";
+run('echo ' . escapeshellarg($out) . ' > ' . escapeshellarg("$path/www/deploy.txt"));
+
+echo "Blessing this build\n";
+sleep(1);
+
+// TODO backup database
+echo "Running migrations\n";
+run('php ' . escapeshellarg("$path/www/index.php") . ' migrations:migrate');
+
+echo "Swapping symlinks\n";
+run('unlink /srv/SITE && ln -s ' . escapeshellarg($path) . ' /srv/SITE');
+
+echo "Restating php-fpm (deterministically flushing opcache)\n";
+run('sudo /etc/init.d/php5-fpm restart');
+
+echo "Flushing redis\n";
+run('redis-cli flushall');
+
+// Flushing fs cache is not required because the freshly
+// checked out directory does not have any temp files
+
+echo "Done\n";
+
+function run($command)
+{
+	$process = new Process($command);
+	$process->run();
+	if (!$process->isSuccessful())
+	{
+	    System::fail($process->getErrorOutput() ?: "Deploy failed on command:\n$command");
+	}
+}
