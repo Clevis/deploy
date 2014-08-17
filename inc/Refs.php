@@ -36,7 +36,10 @@ class Refs
 
 	public static function validate($ref)
 	{
-		return in_array($ref, ['refs/heads/production', 'refs/heads/test']);
+		return in_array($ref, [
+			'refs/heads/production',
+			// 'refs/heads/test',
+		]);
 	}
 
 }

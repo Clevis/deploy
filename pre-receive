@@ -1,11 +1,7 @@
 #!/usr/bin/php
 <?php
 
-date_default_timezone_set('Europe/Prague');
-
-require __DIR__ . '/inc/System.php';
-require __DIR__ . '/inc/Lock.php';
-require __DIR__ . '/inc/Refs.php';
+require __DIR__ . '/inc/bootstrap.php';
 
 Lock::check();
 Lock::registerAutorelease();
@@ -25,12 +21,6 @@ foreach ($refs as list($from, $to, $ref))
 		System::fail("Push to $ref not allowed");
 	}
 }
-
-// for ($i = 0; $i < 10; ++$i)
-// {
-// 	echo "$i/30\n";
-// 	sleep(1);
-// }
 
 // do not release lock, leave it for next hooks
 Lock::disableAutorelease();

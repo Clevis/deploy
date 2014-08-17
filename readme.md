@@ -1,44 +1,16 @@
-Tohle zdokumentuju zitra rano.
+Git deploy
+==========
 
+- does not loose a single request
+- deploy locks, preventing multiple simultaneous deploys
+- executes migrations and flushes cache
 
-Hahahahaha
+Installation
+============
 
-<b>git deploy bez ztraty requestu, s lockovanim, migracema, mazani cache atp</b>
-
-```
-http://git-scm.com/book/en/Git-on-the-Server-Setting-Up-the-Server
-git remote add deploy git@31.31.25.25:/srv/repo/SITE.git
-```
-
-varnish podrzi requesty nez se restartuje php-fpm ale musi se poustet s parametrem `-p max_retries=1000"`
-```
-vcl 4.0;
-
-# Default backend definition. Set this to point to your content server.
-backend default {
-    .host = "127.0.0.1";
-    .port = "8080";
-}
-
-sub vcl_recv {
-    if (!(req.url ~ "^/api")) {
-        return (pass);
-    }
-    # else api
-    unset req.http.cookie;
-}
-
-sub vcl_backend_response {
-    set beresp.ttl = 60s;
-    if (bereq.url ~ "/(tags|tag-types|venues|days)/") {
-        set beresp.ttl = 420s;
-    }
-    if (bereq.url ~ "/users/\?|/users/\d+/\?") {
-        set beresp.ttl = 10s;
-    }
-    if (beresp.status == 502 && bereq.retries < 500) {
-        return (retry);
-    }
-    return (deliver);
-}
-```
+1. Setup git server http://git-scm.com/book/en/Git-on-the-Server-Setting-Up-the-Server
+2. Put those files to newly created repos hooks
+3. `chown git chmod ug+rwx,o=` those files
+4. Change allowed branches in `Refs::validate`
+5. Update `post-receive` `$deployPrefix` (real files prefix) and `$symlinkTarget` (symlink)
+6. Update `post-receive` to restart your supervised worker etc
