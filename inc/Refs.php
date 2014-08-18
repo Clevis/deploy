@@ -3,15 +3,22 @@
 class Refs
 {
 
+	public static $readLines;
+
 	public static function read()
 	{
-		$lines = [];
-		while ($line = fgets(STDIN))
+		if (!self::$readLines)
 		{
-			$lines[] = explode(' ', trim($line));
+			$lines = [];
+			while ($line = fgets(STDIN))
+			{
+				$lines[] = explode(' ', trim($line));
+			}
+
+			self::$readLines = $lines;
 		}
 
-		return $lines;
+		return self::$readLines;
 	}
 
 	public static function getRef()
