@@ -25,7 +25,8 @@ foreach (glob('/srv/deploy/api.webexpo.net_*') as $dir)
 $path = '/srv/deploy/api.webexpo.net_' . ($last + 1);
 mkdir($path);
 echo "Checking-out to $path\n";
-run('git archive ' . Refs::getRef() . ' | tar -xC ' . escapeshellarg($path));
+$ref = Refs::getRef();
+run("git archive $ref | tar -xC " . escapeshellarg($path));
 
 echo "Coping previous config.local.neon\n";
 run('cp /srv/api.webexpo.net/app/config/config.local.neon ' . escapeshellarg("$path/app/config/"));
@@ -61,8 +62,8 @@ run('redis-cli flushall');
 echo "Pushing tag to github\n";
 $parts = explode('/', Refs::getRef());
 $tag = 'deploy-' . array_pop($parts);
-run("git tag -f -a $tag -m $tag");
-run("git push github $tag");
+run("git tag -f -a $tag -m $tag $ref");
+run("git push github $tag -f");
 
 // Flushing fs cache is not required because the freshly
 // checked out directory does not have any temp files
