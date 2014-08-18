@@ -14,3 +14,4 @@ Installation
 4. Change allowed branches in `Refs::validate`
 5. Update `post-receive` `$deployPrefix` (real files prefix) and `$symlinkTarget` (symlink)
 6. Update `post-receive` to restart your supervised worker etc
+7. If you want deploy to push `deploy-*` tags to your github repo, setup github credentials to git user and add github remote to the bare repo.

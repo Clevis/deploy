@@ -3,31 +3,32 @@
 
 use Symfony\Component\Process\Process;
 
-require __DIR__ . '/inc/bootstrap.php';
+date_default_timezone_set('Europe/Prague');
+
+require __DIR__ . '/inc/System.php';
+require __DIR__ . '/inc/Lock.php';
+require __DIR__ . '/inc/Refs.php';
+require __DIR__ . '/inc/vendor/autoload.php';
 
 Lock::registerAutorelease();
 
-$deployPrefix = '/srv/deploy/example.com_';
-$symlinkTarget = '/srv/example.com';
-
-
 $last = 0;
-foreach (glob("$deployPrefix*") as $dir)
+foreach (glob('/srv/deploy/api.webexpo.net_*') as $dir)
 {
-	$index = substr($dir, strlen($deployPrefix));
+	$index = substr($dir, strlen('/srv/deploy/api.webexpo.net_'));
 	if ($index > $last)
 	{
 		$last = $index;
 	}
 }
 
-$path = $deployPrefix . ($last + 1);
+$path = '/srv/deploy/api.webexpo.net_' . ($last + 1);
 mkdir($path);
 echo "Checking-out to $path\n";
 run('git archive ' . Refs::getRef() . ' | tar -xC ' . escapeshellarg($path));
 
 echo "Coping previous config.local.neon\n";
-run('cp ' . $symlinkTarget . 'app/config/config.local.neon ' . escapeshellarg("$path/app/config/"));
+run('cp /srv/api.webexpo.net/app/config/config.local.neon ' . escapeshellarg("$path/app/config/"));
 
 echo "Updating privileges\n";
 run('chmod -R ug+rwx,o= ' . escapeshellarg($path));
@@ -41,20 +42,27 @@ run('echo ' . escapeshellarg($out) . ' > ' . escapeshellarg("$path/www/deploy.tx
 echo "Blessing this build\n";
 sleep(1);
 
+// TODO backup database
 echo "Running migrations\n";
 run('php ' . escapeshellarg("$path/www/index.php") . ' migrations:migrate');
 
 echo "Swapping symlinks\n";
-run('unlink ' . $symlinkTarget . ' && ln -s ' . escapeshellarg($path) . ' ' . $symlinkTarget);
+run('unlink /srv/api.webexpo.net && ln -s ' . escapeshellarg($path) . ' /srv/api.webexpo.net');
 
 echo "Reloading worker\n";
-run('sudo supervisorctl restart example:worker-00');
+run('sudo supervisorctl restart webexpo:worker-00');
 
 echo "Reloading php5-fpm\n";
 run('sudo /etc/init.d/php5-fpm reload');
 
 echo "Flushing redis\n";
 run('redis-cli flushall');
+
+echo "Pushing tag to github\n";
+$parts = explode('/', Refs::getRef());
+$tag = 'deploy-' . array_pop($parts);
+run("git tag -f -a $tag -m $tag");
+run("git push github $tag");
 
 // Flushing fs cache is not required because the freshly
 // checked out directory does not have any temp files
